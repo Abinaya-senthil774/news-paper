@@ -1,0 +1,39 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Chai Chronicle · Your shelf</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700&family=Libre+Caslon+Text:ital,wght@0,400;0,700;1,400&family=Old+Standard+TT:wght@400;700&family=UnifrakturMaguntia&display=swap" rel="stylesheet" />
+  <link rel="stylesheet" href="/css/style.css" />
+</head>
+<body>
+  <div class="app">
+    <header class="topbar">
+      <a class="logo" href="/shelf">Chai Chronicle</a>
+      <span class="greeting" id="greeting"></span>
+      <span class="spacer"></span>
+      <button class="btn btn-ghost btn-sm" id="logoutBtn">Sign out</button>
+    </header>
+
+    <main class="shelf-page">
+      <div class="shelf-head">
+        <h1>The Newspaper Shelf</h1>
+        <div class="shelf-tabs" role="tablist">
+          <button class="tab active" data-tab="mine">My papers</button>
+          <button class="tab" data-tab="shared">Shared with me <span class="count hidden" id="sharedCount"></span></button>
+        </div>
+      </div>
+      <section class="shelf" id="shelf" aria-live="polite"></section>
+    </main>
+
+    <button class="fab" id="fab" title="New month" aria-label="Add a new month">+</button>
+  </div>
+
+  <script src="/js/common.js"></script>
+  <script src="/js/ambience.js"></script>
+  <script src="/js/shelf.js"></script>
+</body>
+</html>

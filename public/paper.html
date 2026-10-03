@@ -1,0 +1,118 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Chai Chronicle · Newspaper</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700&family=Libre+Caslon+Text:ital,wght@0,400;0,700;1,400&family=Old+Standard+TT:ital,wght@0,400;0,700;1,400&family=UnifrakturMaguntia&display=swap" rel="stylesheet" />
+  <link rel="stylesheet" href="/css/style.css" />
+  <link rel="stylesheet" href="/css/paper.css" />
+</head>
+<body>
+  <div class="app reader" id="reader">
+    <header class="topbar reader-bar">
+      <a class="icon-btn" href="/shelf" title="Back to the shelf" aria-label="Back to the shelf">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M15 18l-6-6 6-6"/></svg>
+      </a>
+      <div class="paper-meta">
+        <h1 id="paperTitle">Loading…</h1>
+        <small id="paperSub"></small>
+      </div>
+      <span class="badge" id="roleBadge"></span>
+      <span class="spacer"></span>
+      <div class="actions" id="viewActions">
+        <button class="btn btn-ghost hidden" id="addDayBtn" title="Add a day">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 5v14M5 12h14"/></svg><span class="lbl">Add day</span>
+        </button>
+        <button class="btn btn-primary hidden" id="editBtn" title="Edit this page">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M4 20h4L19 9l-4-4L4 16v4z"/></svg><span class="lbl">Edit</span>
+        </button>
+        <button class="btn btn-ghost hidden" id="shareBtn" title="Share with people">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="9" cy="8" r="3"/><path d="M3 20c0-3 3-5 6-5s6 2 6 5M17 8v6M14 11h6"/></svg><span class="lbl">Share</span>
+        </button>
+        <button class="btn btn-ghost" id="pdfBtn" title="Download or share as PDF">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 3v12M7 10l5 5 5-5M5 21h14"/></svg><span class="lbl">PDF</span>
+        </button>
+      </div>
+      <div class="actions hidden" id="editActions">
+        <span class="dirty-dot hidden" id="dirtyDot" title="Unsaved changes"></span>
+        <button class="btn btn-ghost" id="cancelBtn">Cancel</button>
+        <button class="btn btn-primary" id="saveBtn">Save</button>
+      </div>
+    </header>
+
+    <!-- Edit toolbar (only visible in edit mode) -->
+    <div class="edit-toolbar hidden" id="toolbar">
+      <div class="tb-group">
+        <button class="tb" data-add="headline" title="Add headline"><b>H</b> Headline</button>
+        <button class="tb" data-add="text" title="Add text box">¶ Text</button>
+        <button class="tb" data-add="image" title="Add image">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="5" width="18" height="14" rx="2"/><circle cx="9" cy="10" r="2"/><path d="m21 17-5-5-8 7"/></svg> Image
+        </button>
+        <button class="tb" data-add="rule" title="Add line">― Line</button>
+      </div>
+      <div class="tb-group" id="textTools">
+        <select class="tb-select" id="fontSel" title="Font">
+          <option value="headline">Headline</option>
+          <option value="serif">Body serif</option>
+          <option value="sans">Sans</option>
+        </select>
+        <button class="tb" id="sizeDown" title="Smaller">A−</button>
+        <span class="tb-size" id="sizeVal">14</span>
+        <button class="tb" id="sizeUp" title="Bigger">A+</button>
+        <button class="tb" id="boldBtn" title="Bold (Ctrl+B)"><b>B</b></button>
+        <button class="tb" id="italicBtn" title="Italic (Ctrl+I)"><i>I</i></button>
+        <select class="tb-select" id="alignSel" title="Alignment">
+          <option value="left">Left</option>
+          <option value="center">Center</option>
+          <option value="right">Right</option>
+          <option value="justify">Justify</option>
+        </select>
+        <select class="tb-select" id="colsSel" title="Columns">
+          <option value="1">1 col</option>
+          <option value="2">2 cols</option>
+          <option value="3">3 cols</option>
+        </select>
+      </div>
+      <div class="tb-group" id="imageTools">
+        <button class="tb" id="replaceImg" title="Choose a photo">Choose photo</button>
+      </div>
+      <div class="tb-group" id="elTools">
+        <button class="tb" id="frontBtn" title="Bring to front">Front</button>
+        <button class="tb" id="backBtn" title="Send to back">Back</button>
+        <button class="tb" id="dupBtn" title="Duplicate">Copy</button>
+        <button class="tb" id="delBtn" title="Delete element (Del)">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 6h18M8 6V4h8v2M6 6l1 14h10l1-14"/></svg>
+        </button>
+      </div>
+      <div class="tb-group">
+        <button class="tb" id="zoomOut" title="Zoom out">−</button>
+        <button class="tb" id="zoomFit" title="Fit to screen">Fit</button>
+        <button class="tb" id="zoomIn" title="Zoom in">+</button>
+      </div>
+      <div class="tb-group">
+        <button class="tb" id="deleteDayBtn" title="Delete this day">Delete day</button>
+      </div>
+      <input type="file" id="fileInput" accept="image/*" hidden />
+    </div>
+
+    <main class="stage" id="stage">
+      <button class="nav-arrow prev" id="prevBtn" aria-label="Previous day">‹</button>
+      <div class="book-wrap" id="bookWrap"><div class="book" id="book"></div></div>
+      <button class="nav-arrow next" id="nextBtn" aria-label="Next day">›</button>
+    </main>
+    <nav class="day-strip" id="dayStrip" aria-label="Days"></nav>
+  </div>
+
+  <script src="/vendor/html2canvas.min.js" defer></script>
+  <script src="/vendor/jspdf.umd.min.js" defer></script>
+  <script src="/js/common.js"></script>
+  <script src="/js/ambience.js"></script>
+  <script src="/js/template.js"></script>
+  <script src="/js/editor.js"></script>
+  <script src="/js/pdf.js"></script>
+  <script src="/js/paper.js"></script>
+</body>
+</html>

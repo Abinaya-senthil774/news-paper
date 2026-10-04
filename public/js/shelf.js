@@ -4,8 +4,8 @@
   try { user = await requireUser(); } catch { return; }
 
   const hour = new Date().getHours();
-  const part = hour < 12 ? 'Good morning' : hour < 17 ? 'Good afternoon' : 'Good evening';
-  $('#greeting').textContent = `${part}, ${user.displayName}. Chai's ready.`;
+  const part = hour < 12 ? 'Good morning 🌅' : hour < 17 ? 'Good afternoon ☀️' : 'Good evening 🌃';
+  $('#greeting').textContent = `${part}, ${user.displayName}. Your space is ready.`;
 
   let data = { mine: [], shared: [] };
   let tab = 'mine';

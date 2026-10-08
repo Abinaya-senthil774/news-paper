@@ -2,7 +2,14 @@
 <html lang="en">
 <head>
   <meta charset="utf-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
+  <meta name="theme-color" content="#2a170b" />
+  <meta name="mobile-web-app-capable" content="yes" />
+  <meta name="apple-mobile-web-app-capable" content="yes" />
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
+  <meta name="apple-mobile-web-app-title" content="dʌmi News" />
+  <link rel="manifest" href="/manifest.webmanifest" />
+  <link rel="apple-touch-icon" href="/icons/apple-touch-icon.png" />
   <link rel="icon" href="data:image/svg+xml,<svg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 100 100%22><text y=%22.9em%22 font-size=%2290%22>📰</text></svg>" />
   <title>dʌmi News  · Newspaper</title>
   <link rel="preconnect" href="https://fonts.googleapis.com" />
@@ -35,6 +42,10 @@
         </button>
         <button class="btn btn-ghost" id="pdfBtn" title="Download or share as PDF">
           <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 3v12M7 10l5 5 5-5M5 21h14"/></svg><span class="lbl">PDF</span>
+        </button>
+        <div class="top-tools" id="topTools"></div>
+        <button class="icon-btn" id="moreBtn" title="More" aria-label="More options" aria-haspopup="menu">
+          <svg viewBox="0 0 24 24" fill="currentColor"><circle cx="5" cy="12" r="2"/><circle cx="12" cy="12" r="2"/><circle cx="19" cy="12" r="2"/></svg>
         </button>
       </div>
       <div class="actions hidden" id="editActions">
@@ -104,6 +115,7 @@
       <div class="book-wrap" id="bookWrap"><div class="book" id="book"></div></div>
       <button class="nav-arrow next" id="nextBtn" aria-label="Next day">›</button>
     </main>
+    <div class="react-bar hidden" id="reactBar" aria-label="Reactions"></div>
     <nav class="day-strip" id="dayStrip" aria-label="Days"></nav>
   </div>
 

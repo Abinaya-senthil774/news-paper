@@ -328,3 +328,97 @@ body.bg-blur .ambience { filter: blur(9px) brightness(0.55) saturate(1.15); tran
   .shelf { padding: 16px 8px 0; grid-template-columns: repeat(auto-fill, minmax(150px, 1fr)); }
   .shelf-page { padding: 18px 16px 110px; }
 }
+
+/* ===== Notification bell ===== */
+.top-tools { display: flex; align-items: center; gap: 8px; }
+.bell-wrap { position: relative; }
+.bell-badge {
+  position: absolute; top: -3px; right: -3px; min-width: 18px; height: 18px; padding: 0 5px;
+  border-radius: 999px; background: var(--accent); color: #fff; font-size: 11px; font-weight: 700;
+  display: grid; place-items: center; line-height: 1; box-shadow: 0 0 0 2px #2a170b;
+  animation: popIn 0.3s cubic-bezier(0.2, 1.4, 0.4, 1);
+}
+.n-panel {
+  position: absolute; top: calc(100% + 10px); right: -8px; z-index: 60;
+  width: min(360px, calc(100vw - 24px));
+  background: var(--paper); color: var(--ink);
+  border-radius: 12px; box-shadow: var(--shadow); overflow: hidden;
+  animation: popIn 0.22s cubic-bezier(0.2, 1.3, 0.4, 1);
+}
+.n-head { display: flex; align-items: center; justify-content: space-between; padding: 12px 14px; border-bottom: 1px solid rgba(0, 0, 0, 0.1); font-family: var(--serif); }
+.n-all { border: 0; background: none; color: var(--chai-dark); font-weight: 600; font-size: 13px; padding: 4px; }
+.n-list { list-style: none; margin: 0; padding: 0; max-height: min(60vh, 420px); overflow: auto; }
+.n-item {
+  width: 100%; text-align: left; border: 0; background: none; color: inherit;
+  padding: 12px 14px 12px 22px; position: relative; display: grid; gap: 4px;
+  border-bottom: 1px solid rgba(0, 0, 0, 0.06); font-size: 14px; line-height: 1.4;
+}
+.n-item:hover { background: rgba(0, 0, 0, 0.04); }
+.n-item.unread::before { content: ''; position: absolute; left: 9px; top: 18px; width: 7px; height: 7px; border-radius: 50%; background: var(--accent); }
+.n-item.unread { background: rgba(168, 104, 47, 0.08); }
+.n-item small { color: #7a6f5c; font-size: 12px; }
+.n-emoji { font-size: 16px; }
+.n-empty { padding: 22px 16px; text-align: center; font-family: var(--serif); font-style: italic; color: #6b5f4c; font-size: 14px; }
+
+/* ===== Dropdown menu ===== */
+.menu-pop {
+  position: fixed; z-index: 950; min-width: 210px;
+  background: var(--paper); color: var(--ink); border-radius: 12px; box-shadow: var(--shadow);
+  padding: 6px; animation: popIn 0.2s cubic-bezier(0.2, 1.3, 0.4, 1);
+}
+.menu-pop button { display: flex; width: 100%; align-items: center; gap: 10px; border: 0; background: none; color: inherit; padding: 11px 12px; border-radius: 8px; font-size: 14px; font-weight: 600; text-align: left; }
+.menu-pop button:hover { background: rgba(0, 0, 0, 0.06); }
+.menu-pop button.danger { color: #a93226; }
+
+/* ===== Shelf extras ===== */
+#accountBtn { font-weight: 700; font-family: var(--serif); font-size: 17px; }
+.streak {
+  display: inline-flex; align-items: center; gap: 4px; padding: 5px 12px; border-radius: 999px;
+  background: rgba(0, 0, 0, 0.4); border: 1px solid rgba(255, 170, 80, 0.55); font-weight: 700; font-size: 13px;
+  animation: popIn 0.4s cubic-bezier(0.2, 1.4, 0.4, 1);
+}
+.streak.pending { border-style: dashed; opacity: 0.85; }
+.email-nudge {
+  display: flex; align-items: center; gap: 12px; flex-wrap: wrap; justify-content: space-between;
+  margin: 0 0 16px; padding: 12px 14px; border-radius: 12px;
+  background: rgba(247, 241, 228, 0.95); color: var(--ink); box-shadow: var(--shadow); font-size: 14px;
+}
+.greeting-mobile { display: none; margin: -6px 0 14px; font-family: var(--serif); font-style: italic; opacity: 0.9; }
+.check { display: flex; align-items: center; gap: 10px; font-size: 14px; margin: 4px 0 6px; cursor: pointer; }
+.check input { width: 18px; height: 18px; accent-color: var(--chai-dark); }
+
+/* ===== Mobile & touch ===== */
+.login-wrap { min-height: 100vh; min-height: 100dvh; }
+/* No hover on touch screens: keep the delete button visible. */
+@media (hover: none) {
+  .card-del { opacity: 1; width: 32px; height: 32px; }
+  .paper-card:hover { transform: rotate(var(--tilt, 0deg)); }
+}
+@media (max-width: 600px) {
+  .greeting-mobile { display: block; }
+  .topbar { gap: 8px; padding: 10px 12px; padding-top: max(10px, env(safe-area-inset-top)); }
+  .topbar .logo { font-size: 24px; }
+  #logoutBtn { padding: 6px 10px; }
+  .shelf-head h1 { font-size: 23px; }
+  .shelf { --row: 268px; padding: 14px 6px 0; border-width: 7px; grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  .paper-card, .add-card { width: min(148px, 100%); height: 206px; }
+  .paper-card .mini-month { font-size: 22px; }
+  .fab { right: 18px; bottom: calc(18px + env(safe-area-inset-bottom)); width: 56px; height: 56px; }
+  .modal-back { align-items: end; padding: 0; }
+  .modal { width: 100%; max-height: 88dvh; border-radius: 16px 16px 0 0; padding-bottom: calc(20px + env(safe-area-inset-bottom)); animation: sheetUp 0.32s cubic-bezier(0.2, 1, 0.3, 1); }
+  .modal-actions { flex-wrap: wrap; }
+  .modal-actions .btn { flex: 1; justify-content: center; }
+  #toasts { bottom: calc(90px + env(safe-area-inset-bottom)); width: calc(100% - 32px); }
+  .toast { text-align: center; border-radius: 14px; }
+}
+@keyframes sheetUp { from { transform: translateY(100%); } }
+/* iOS zooms into inputs smaller than 16px: keep them at 16px on phones. */
+@media (pointer: coarse) {
+  .input, .tb-select, select { font-size: 16px; }
+}
+@media (max-width: 600px), (max-width: 760px) and (pointer: coarse) {
+  /* Pin the notification panel to the screen edges instead of the bell. */
+  .n-panel { position: fixed; top: calc(64px + env(safe-area-inset-top)); left: 10px; right: 10px; width: auto; }
+  /* Toasts at the top so they never cover the reaction bar / day strip. */
+  #toasts { top: calc(70px + env(safe-area-inset-top)); bottom: auto; }
+}

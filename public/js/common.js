@@ -119,3 +119,176 @@ async function requireUser() {
   const { user } = await API.get('/api/auth/me');
   return user;
 }
+
+/* ---------- Greeting that follows the clock (midnight is not "morning") ---------- */
+function greetingFor(name, date = new Date()) {
+  const h = date.getHours();
+  if (h >= 5 && h < 12) return `Good morning 🌅, ${name}. Your space is ready.`;
+  if (h >= 12 && h < 17) return `Good afternoon ☀️, ${name}. Your space is ready.`;
+  if (h >= 17 && h < 21) return `Good evening 🌃, ${name}. Your space is ready.`;
+  return `Still up, ${name}? 🌙 Write it down before you sleep.`;
+}
+
+function timeAgo(iso) {
+  const s = Math.max(0, (Date.now() - new Date(iso).getTime()) / 1000);
+  if (s < 60) return 'just now';
+  if (s < 3600) return `${Math.floor(s / 60)}m ago`;
+  if (s < 86400) return `${Math.floor(s / 3600)}h ago`;
+  if (s < 7 * 86400) return `${Math.floor(s / 86400)}d ago`;
+  return new Date(iso).toLocaleDateString(undefined, { day: 'numeric', month: 'short' });
+}
+
+/* ---------- Notification bell ---------- */
+const Bell = (() => {
+  let host, btn, badge, panel;
+  let state = { unread: 0, items: [] };
+
+  const ICON = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M6 8a6 6 0 1 1 12 0c0 7 3 9 3 9H3s3-2 3-9"/><path d="M10.3 21a1.94 1.94 0 0 0 3.4 0"/></svg>';
+
+  function text(n) {
+    const who = `<b>${esc(n.actorName)}</b>`;
+    const paper = `<i>${esc(n.paperTitle)}</i>`;
+    const when = n.month ? `${MONTHS[n.month - 1]}${n.day ? ' ' + n.day : ' ' + n.year}` : '';
+    if (n.type === 'share') return `${who} shared ${paper} (${esc(when)}) with you. ${n.data.role === 'edit' ? 'You can edit it.' : 'You can read it.'}`;
+    if (n.type === 'role') return `${who} changed your access to ${paper}: ${n.data.role === 'edit' ? 'you can edit now' : 'view only'}.`;
+    if (n.type === 'reaction') return `${who} reacted <span class="n-emoji">${esc(n.data.emoji)}</span> to your ${esc(when)} page in ${paper}.`;
+    return `${who} did something in ${paper}.`;
+  }
+
+  function link(n) {
+    if (!n.paperId) return null;
+    return `/paper?id=${n.paperId}${n.day ? `&day=${n.day}` : ''}`;
+  }
+
+  function draw() {
+    badge.textContent = state.unread > 9 ? '9+' : state.unread;
+    badge.classList.toggle('hidden', !state.unread);
+    btn.setAttribute('aria-label', state.unread ? `Notifications, ${state.unread} unread` : 'Notifications');
+    if (!panel) return;
+    const list = state.items.length
+      ? state.items.map((n) => `<li><button class="n-item ${n.read ? '' : 'unread'}" data-id="${n.id}" data-href="${esc(link(n) || '')}">
+            <span class="n-text">${text(n)}</span><small>${esc(timeAgo(n.createdAt))}</small></button></li>`).join('')
+      : '<li class="n-empty">No news yet. When a friend shares a paper or reacts to one of your days, it shows up here.</li>';
+    panel.innerHTML = `<div class="n-head"><b>Notifications</b>${state.unread ? '<button class="n-all" data-all>Mark all read</button>' : ''}</div><ul class="n-list">${list}</ul>`;
+  }
+
+  async function refresh() {
+    try {
+      state = await API.get('/api/notifications');
+      draw();
+    } catch { /* offline or signed out: ignore */ }
+  }
+
+  function close() {
+    panel?.remove();
+    panel = null;
+    document.removeEventListener('pointerdown', outside, true);
+  }
+  function outside(e) {
+    if (!panel) return;
+    if (!panel.contains(e.target) && !btn.contains(e.target)) close();
+  }
+
+  function toggle() {
+    if (panel) return close();
+    panel = document.createElement('div');
+    panel.className = 'n-panel';
+    host.appendChild(panel);
+    draw();
+    document.addEventListener('pointerdown', outside, true);
+    panel.addEventListener('click', async (e) => {
+      if (e.target.closest('[data-all]')) {
+        await API.post('/api/notifications/read', {}).catch(() => {});
+        state.items.forEach((n) => (n.read = true));
+        state.unread = 0;
+        return draw();
+      }
+      const item = e.target.closest('.n-item');
+      if (!item) return;
+      const id = Number(item.dataset.id);
+      const n = state.items.find((x) => x.id === id);
+      if (n && !n.read) API.post('/api/notifications/read', { ids: [id] }).catch(() => {});
+      if (item.dataset.href) location.href = item.dataset.href;
+    });
+    refresh();
+  }
+
+  function mount(container) {
+    host = document.createElement('div');
+    host.className = 'bell-wrap';
+    host.innerHTML = `<button class="icon-btn bell" type="button" aria-label="Notifications">${ICON}<span class="bell-badge hidden"></span></button>`;
+    container.appendChild(host);
+    btn = $('.bell', host);
+    badge = $('.bell-badge', host);
+    btn.onclick = toggle;
+    refresh();
+    // Check again when you come back to the tab, and every 2 minutes while it's open.
+    document.addEventListener('visibilitychange', () => { if (!document.hidden) refresh(); });
+    setInterval(() => { if (!document.hidden) refresh(); }, 120000);
+  }
+
+  return { mount, refresh };
+})();
+
+/* ---------- Account settings (name, email, email notifications) ---------- */
+function openAccount(user, onSaved) {
+  openModal(
+    `<h2>Your account</h2>
+     <p class="sub">@${esc(user.username)}. We only email you when someone shares a newspaper with you or reacts to your page.</p>
+     <form id="accountForm">
+       <label class="field"><span>Your name</span><input class="input" name="displayName" maxlength="40" value="${esc(user.displayName)}" required/></label>
+       <label class="field"><span>Email</span><input class="input" name="email" type="email" autocomplete="email" inputmode="email" value="${esc(user.email || '')}" placeholder="you@example.com" required/></label>
+       <label class="check"><input type="checkbox" name="notifyEmail" ${user.notifyEmail !== false ? 'checked' : ''}/> Email me about shares and reactions</label>
+       <div class="modal-actions">
+         <button type="button" class="btn btn-ghost" data-cancel>Cancel</button>
+         <button class="btn btn-primary" type="submit">Save</button>
+       </div>
+     </form>`,
+    {
+      onOpen(m, close) {
+        $('[data-cancel]', m).onclick = close;
+        $('#accountForm', m).onsubmit = async (e) => {
+          e.preventDefault();
+          const f = e.target;
+          try {
+            const { user: u } = await API.patch('/api/auth/me', {
+              displayName: f.displayName.value,
+              email: f.email.value,
+              notifyEmail: f.notifyEmail.checked,
+            });
+            Object.assign(user, u);
+            close();
+            toast('Account saved', 'success');
+            onSaved && onSaved(u);
+          } catch (ex) { toast(ex.message, 'error'); }
+        };
+      },
+    }
+  );
+}
+
+/* ---------- Small dropdown menu (used for the "⋯" button) ---------- */
+function openMenu(anchor, items) {
+  document.querySelector('.menu-pop')?.remove();
+  const pop = document.createElement('div');
+  pop.className = 'menu-pop';
+  pop.setAttribute('role', 'menu');
+  pop.innerHTML = items
+    .filter(Boolean)
+    .map((it, i) => `<button role="menuitem" data-i="${i}" class="${it.danger ? 'danger' : ''}">${it.icon || ''}<span>${esc(it.label)}</span></button>`)
+    .join('');
+  const list = items.filter(Boolean);
+  document.body.appendChild(pop);
+  const r = anchor.getBoundingClientRect();
+  pop.style.top = `${r.bottom + 6}px`;
+  pop.style.right = `${Math.max(8, window.innerWidth - r.right)}px`;
+  const close = () => { pop.remove(); document.removeEventListener('pointerdown', outside, true); };
+  const outside = (e) => { if (!pop.contains(e.target) && !anchor.contains(e.target)) close(); };
+  document.addEventListener('pointerdown', outside, true);
+  pop.addEventListener('click', (e) => {
+    const b = e.target.closest('[data-i]');
+    if (!b) return;
+    close();
+    list[Number(b.dataset.i)].onClick();
+  });
+}

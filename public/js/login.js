@@ -32,6 +32,7 @@
         username: form.username.value,
         password: form.password.value,
         displayName: form.displayName.value,
+        email: form.email.value,
       };
       await API.post(mode === 'register' ? '/api/auth/register' : '/api/auth/login', body);
       card.classList.add('folding');

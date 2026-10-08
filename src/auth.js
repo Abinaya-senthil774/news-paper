@@ -34,8 +34,13 @@ const SECRET = loadSecret();
 const publicUser = (u) => ({
   id: u.id,
   username: u.username,
-  displayName: u.display_name
+  displayName: u.display_name,
+  email: u.email || null,
+  notifyEmail: u.notify_email !== false,
 });
+
+const EMAIL_RE = /^[^\s@]+@[^\s@]+\.[^\s@]{2,}$/;
+const cleanEmail = (v) => String(v || '').trim().toLowerCase();
 
 function issueCookie(res, user) {
   const token = jwt.sign(
@@ -65,7 +70,7 @@ async function requireAuth(req, res, next) {
     const { uid } = jwt.verify(token, SECRET);
 
     const result = await db.query(
-      'SELECT id, username, display_name FROM users WHERE id = $1',
+      'SELECT id, username, display_name, email, notify_email FROM users WHERE id = $1',
       [uid]
     );
 
@@ -101,6 +106,7 @@ router.post('/register', async (req, res) => {
       String(req.body.displayName || '').trim() || username;
 
     const password = String(req.body.password || '');
+    const email = cleanEmail(req.body.email);
 
     if (!/^[a-z0-9_.]{3,24}$/.test(username)) {
       return res.status(400).json({
@@ -111,6 +117,12 @@ router.post('/register', async (req, res) => {
     if (password.length < 6) {
       return res.status(400).json({
         error: 'Password must be at least 6 characters'
+      });
+    }
+
+    if (!EMAIL_RE.test(email) || email.length > 254) {
+      return res.status(400).json({
+        error: 'Please enter a valid email address'
       });
     }
 
@@ -132,21 +144,33 @@ router.post('/register', async (req, res) => {
       });
     }
 
+    const emailTaken = await db.query(
+      'SELECT 1 FROM users WHERE lower(email) = $1',
+      [email]
+    );
+
+    if (emailTaken.rows.length > 0) {
+      return res.status(409).json({
+        error: 'An account with that email already exists'
+      });
+    }
+
     const hash = await bcrypt.hash(password, 10);
 
     // Insert user and get the generated PostgreSQL ID
     const result = await db.query(
       `
       INSERT INTO users
-        (username, display_name, password_hash, created_at)
+        (username, display_name, password_hash, email, created_at)
       VALUES
-        ($1, $2, $3, $4)
+        ($1, $2, $3, $4, $5)
       RETURNING *
       `,
       [
         username,
         displayName,
         hash,
+        email,
         new Date().toISOString()
       ]
     );
@@ -165,7 +189,9 @@ router.post('/register', async (req, res) => {
     // Handles PostgreSQL UNIQUE constraint safely
     if (error.code === '23505') {
       return res.status(409).json({
-        error: 'That username is taken'
+        error: /email/.test(error.constraint || '')
+          ? 'An account with that email already exists'
+          : 'That username is taken'
       });
     }
 
@@ -232,6 +258,47 @@ router.get('/me', requireAuth, (req, res) => {
   res.json({
     user: publicUser(req.user)
   });
+});
+
+
+// UPDATE PROFILE: display name, email, email notifications on/off
+router.patch('/me', requireAuth, async (req, res) => {
+  const u = req.user;
+  let displayName = u.display_name;
+  let email = u.email;
+  let notifyEmail = u.notify_email !== false;
+
+  if (req.body.displayName !== undefined) {
+    displayName = String(req.body.displayName || '').trim();
+    if (!displayName || displayName.length > 40) {
+      return res.status(400).json({ error: 'Name must be 1–40 characters' });
+    }
+  }
+
+  if (req.body.email !== undefined) {
+    email = cleanEmail(req.body.email);
+    if (!EMAIL_RE.test(email) || email.length > 254) {
+      return res.status(400).json({ error: 'Please enter a valid email address' });
+    }
+  }
+
+  if (req.body.notifyEmail !== undefined) notifyEmail = !!req.body.notifyEmail;
+
+  try {
+    const result = await db.query(
+      `UPDATE users SET display_name = $1, email = $2, notify_email = $3
+       WHERE id = $4
+       RETURNING id, username, display_name, email, notify_email`,
+      [displayName, email, notifyEmail, u.id]
+    );
+    res.json({ user: publicUser(result.rows[0]) });
+  } catch (error) {
+    if (error.code === '23505') {
+      return res.status(409).json({ error: 'Another account already uses that email' });
+    }
+    console.error('Update profile error:', error);
+    res.status(500).json({ error: 'Unable to update your account' });
+  }
 });
 
 

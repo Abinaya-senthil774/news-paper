@@ -5,7 +5,8 @@
   "main": "server.js",
   "scripts": {
     "start": "node server.js",
-    "dev": "node --watch server.js"
+    "dev": "node --watch server.js",
+    "test-mail": "node scripts/test-mail.js"
   },
   "engines": {
     "node": ">=18"
@@ -19,6 +20,7 @@
     "html2canvas": "^1.4.1",
     "jsonwebtoken": "^9.0.2",
     "jspdf": "^4.2.1",
+    "nodemailer": "^6.10.1",
     "pg": "^8.23.1"
   },
   "keywords": [],

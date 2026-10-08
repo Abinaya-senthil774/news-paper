@@ -2,6 +2,7 @@
 const express = require('express');
 const db = require('./db');
 const { requireAuth } = require('./auth');
+const notify = require('./notify');
 
 const router = express.Router();
 router.use(requireAuth);
@@ -10,6 +11,7 @@ const now = () => new Date().toISOString();
 const daysInMonth = (year, month) => new Date(year, month, 0).getDate();
 const canEdit = (role) => role === 'owner' || role === 'edit';
 const MAX_CONTENT_BYTES = 20 * 1024 * 1024;
+const REACTIONS = ['❤️', '😂', '😮', '😢', '👏', '☕'];
 
 /*
  * PostgreSQL returns TIMESTAMPTZ columns as JavaScript Date objects.
@@ -31,14 +33,14 @@ const PAPER_SELECT = `
 
 function serializePaper(row, role) {
   return {
-    id: row.id,
+    id: Number(row.id),
     title: row.title,
-    year: row.year,
-    month: row.month,
-    ownerId: row.owner_id,
+    year: Number(row.year),
+    month: Number(row.month),
+    ownerId: Number(row.owner_id),
     ownerUsername: row.owner_username,
     ownerName: row.owner_name,
-    pageCount: row.page_count,
+    pageCount: Number(row.page_count),
     updatedAt: isoTimestamp(row.updated_at),
     role,
   };
@@ -46,9 +48,9 @@ function serializePaper(row, role) {
 
 function serializePage(row) {
   return {
-    id: row.id,
-    day: row.day,
-    content: JSON.parse(row.content),
+    id: Number(row.id),
+    day: Number(row.day),
+    content: typeof row.content === 'string' ? JSON.parse(row.content) : row.content,
     updatedAt: isoTimestamp(row.updated_at),
     updatedBy: row.updated_by_name || null,
   };
@@ -139,8 +141,11 @@ function withPaper(minRole) {
 }
 
 
-// Middleware: load page :pid and its newspaper; requires edit access.
-async function withPageForEdit(req, res, next) {
+// Middleware: load page :pid and its newspaper, enforcing a minimum role.
+const withPageForEdit = withPage('edit');
+
+function withPage(minRole) {
+  return async (req, res, next) => {
   try {
     const pageResult = await db.query(
       'SELECT * FROM pages WHERE id = $1',
@@ -166,7 +171,7 @@ async function withPageForEdit(req, res, next) {
       });
     }
 
-    if (!canEdit(role)) {
+    if (minRole === 'edit' && !canEdit(role)) {
       return res.status(403).json({
         error: 'You only have view access'
       });
@@ -174,15 +179,17 @@ async function withPageForEdit(req, res, next) {
 
     req.page = page;
     req.paper = paper;
+    req.role = role;
 
     next();
   } catch (error) {
-    console.error('withPageForEdit error:', error);
+    console.error('withPage error:', error);
 
     res.status(500).json({
       error: 'Unable to load page'
     });
   }
+  };
 }
 
 
@@ -277,9 +284,28 @@ router.get('/papers', async (req, res) => {
     );
 
 
+    // Days you actually wrote something on (any text or photo) in the last ~400 days.
+    // The browser turns this into a writing streak using its own local date.
+    const daysResult = await db.query(
+      `
+      SELECT n.year, n.month, p.day
+      FROM pages p
+      JOIN newspapers n ON n.id = p.newspaper_id
+      WHERE n.owner_id = $1
+        AND make_date(n.year::int, n.month::int, 1) >= (current_date - INTERVAL '400 days')
+        AND p.content::text ~ '"(html|src)":"[^"]'
+      `,
+      [req.user.id]
+    );
+
+    const writtenDays = daysResult.rows.map((r) =>
+      `${r.year}-${String(r.month).padStart(2, '0')}-${String(r.day).padStart(2, '0')}`
+    );
+
     res.json({
       mine,
-      shared
+      shared,
+      writtenDays
     });
 
   } catch (error) {
@@ -400,10 +426,31 @@ router.get('/papers/:id', withPaper('view'), async (req, res) => {
 
     const pages = result.rows.map(serializePage);
 
+    const reactionsResult = await db.query(
+      `
+      SELECT r.page_id, r.user_id, r.emoji, u.display_name, u.username
+      FROM reactions r
+      JOIN pages p ON p.id = r.page_id
+      JOIN users u ON u.id = r.user_id
+      WHERE p.newspaper_id = $1
+      ORDER BY r.updated_at DESC
+      `,
+      [req.paper.id]
+    );
+
+    const byPage = {};
+    for (const r of reactionsResult.rows) {
+      (byPage[r.page_id] ||= []).push(r);
+    }
+    pages.forEach((pg) => {
+      pg.reactions = summarizeReactions(byPage[pg.id] || [], req.user.id);
+    });
+
 
     res.json({
       paper: serializePaper(req.paper, req.role),
-      pages
+      pages,
+      reactionChoices: REACTIONS
     });
 
   } catch (error) {
@@ -464,10 +511,16 @@ router.patch('/papers/:id', withPaper('edit'), async (req, res) => {
 // Delete newspaper.
 router.delete('/papers/:id', withPaper('owner'), async (req, res) => {
   try {
-    await db.query(
-      'DELETE FROM newspapers WHERE id = $1',
-      [req.paper.id]
-    );
+    // Delete children explicitly, in one transaction, so this works even if the
+    // Supabase foreign keys were created without ON DELETE CASCADE.
+    await db.tx(async (c) => {
+      const id = req.paper.id;
+      await c.query('DELETE FROM notifications WHERE newspaper_id = $1', [id]);
+      await c.query('DELETE FROM reactions WHERE page_id IN (SELECT id FROM pages WHERE newspaper_id = $1)', [id]);
+      await c.query('DELETE FROM shares WHERE newspaper_id = $1', [id]);
+      await c.query('DELETE FROM pages WHERE newspaper_id = $1', [id]);
+      await c.query('DELETE FROM newspapers WHERE id = $1', [id]);
+    });
 
 
     res.json({
@@ -713,10 +766,14 @@ router.put('/pages/:pid', withPageForEdit, async (req, res) => {
 // Delete page.
 router.delete('/pages/:pid', withPageForEdit, async (req, res) => {
   try {
-    await db.query(
-      'DELETE FROM pages WHERE id = $1',
-      [req.page.id]
-    );
+    await db.tx(async (c) => {
+      await c.query('DELETE FROM reactions WHERE page_id = $1', [req.page.id]);
+      await c.query(
+        'DELETE FROM notifications WHERE newspaper_id = $1 AND day = $2',
+        [req.paper.id, req.page.day]
+      );
+      await c.query('DELETE FROM pages WHERE id = $1', [req.page.id]);
+    });
 
 
     await touchPaper(req.paper.id);
@@ -821,6 +878,12 @@ router.post('/papers/:id/shares', withPaper('owner'), async (req, res) => {
     }
 
 
+    const before = await db.query(
+      'SELECT role FROM shares WHERE newspaper_id = $1 AND user_id = $2',
+      [req.paper.id, user.id]
+    );
+    const previousRole = before.rows[0] ? before.rows[0].role : null;
+
     await db.query(
       `
       INSERT INTO shares
@@ -837,6 +900,17 @@ router.post('/papers/:id/shares', withPaper('owner'), async (req, res) => {
         now()
       ]
     );
+
+    // Bell + email for a new share; bell only when access changes.
+    try {
+      if (!previousRole) {
+        await notify.shared(req, { userId: user.id, paper: req.paper, role });
+      } else if (previousRole !== role) {
+        await notify.roleChanged(req, { userId: user.id, paper: req.paper, role });
+      }
+    } catch (e) {
+      console.error('Share notification error:', e);
+    }
 
 
     const shares = await listShares(req.paper.id);
@@ -907,6 +981,158 @@ router.delete(
     }
   }
 );
+
+
+/* ---------- Reactions ---------- */
+
+
+function summarizeReactions(rows, meId) {
+  const counts = {};
+  let mine = null;
+  const people = [];
+  for (const r of rows) {
+    counts[r.emoji] = (counts[r.emoji] || 0) + 1;
+    if (String(r.user_id) === String(meId)) mine = r.emoji;
+    people.push({ name: r.display_name, username: r.username, emoji: r.emoji });
+  }
+  return { counts, mine, people };
+}
+
+async function pageReactions(pageId, meId) {
+  const { rows } = await db.query(
+    `
+    SELECT r.user_id, r.emoji, u.display_name, u.username
+    FROM reactions r JOIN users u ON u.id = r.user_id
+    WHERE r.page_id = $1
+    ORDER BY r.updated_at DESC
+    `,
+    [pageId]
+  );
+  return summarizeReactions(rows, meId);
+}
+
+
+// React to a page (anyone who can see it). Sending the same emoji again keeps it.
+router.put('/pages/:pid/reaction', withPage('view'), async (req, res) => {
+  const emoji = String(req.body.emoji || '');
+
+  if (!REACTIONS.includes(emoji)) {
+    return res.status(400).json({ error: 'Unknown reaction' });
+  }
+
+  try {
+    const result = await db.query(
+      `
+      INSERT INTO reactions (page_id, user_id, emoji, created_at, updated_at)
+      VALUES ($1, $2, $3, now(), now())
+      ON CONFLICT (page_id, user_id)
+      DO UPDATE SET emoji = EXCLUDED.emoji, updated_at = now()
+      RETURNING (xmax = 0) AS inserted
+      `,
+      [req.page.id, req.user.id, emoji]
+    );
+
+    const first = result.rows[0].inserted;
+    const ownerId = req.paper.owner_id;
+
+    if (String(ownerId) !== String(req.user.id)) {
+      notify
+        .reacted(req, { userId: ownerId, paper: req.paper, day: req.page.day, emoji, first })
+        .catch((e) => console.error('Reaction notification error:', e));
+    }
+
+    res.json({ reactions: await pageReactions(req.page.id, req.user.id) });
+  } catch (error) {
+    console.error('React error:', error);
+    res.status(500).json({ error: 'Unable to save your reaction' });
+  }
+});
+
+
+// Take your reaction back.
+router.delete('/pages/:pid/reaction', withPage('view'), async (req, res) => {
+  try {
+    await db.query('DELETE FROM reactions WHERE page_id = $1 AND user_id = $2', [req.page.id, req.user.id]);
+
+    notify
+      .reactionRemoved({ userId: req.paper.owner_id, actorId: req.user.id, paperId: req.paper.id, day: req.page.day })
+      .catch((e) => console.error('Reaction notification cleanup error:', e));
+
+    res.json({ reactions: await pageReactions(req.page.id, req.user.id) });
+  } catch (error) {
+    console.error('Unreact error:', error);
+    res.status(500).json({ error: 'Unable to remove your reaction' });
+  }
+});
+
+
+/* ---------- Notifications (the bell) ---------- */
+
+
+router.get('/notifications', async (req, res) => {
+  try {
+    const { rows } = await db.query(
+      `
+      SELECT n.id, n.type, n.newspaper_id, n.day, n.data, n.read_at, n.created_at,
+             u.display_name AS actor_name, u.username AS actor_username,
+             np.title AS paper_title, np.month, np.year
+      FROM notifications n
+      LEFT JOIN users u ON u.id = n.actor_id
+      LEFT JOIN newspapers np ON np.id = n.newspaper_id
+      WHERE n.user_id = $1
+      ORDER BY n.created_at DESC
+      LIMIT 40
+      `,
+      [req.user.id]
+    );
+
+    const unreadResult = await db.query(
+      'SELECT COUNT(*) AS c FROM notifications WHERE user_id = $1 AND read_at IS NULL',
+      [req.user.id]
+    );
+
+    res.json({
+      unread: Number(unreadResult.rows[0].c),
+      items: rows.map((r) => ({
+        id: Number(r.id),
+        type: r.type,
+        paperId: r.newspaper_id ? Number(r.newspaper_id) : null,
+        paperTitle: r.paper_title || (r.data && r.data.title) || 'a newspaper',
+        month: r.month,
+        year: r.year,
+        day: r.day,
+        data: r.data || {},
+        actorName: r.actor_name || 'Someone',
+        actorUsername: r.actor_username,
+        read: !!r.read_at,
+        createdAt: isoTimestamp(r.created_at),
+      })),
+    });
+  } catch (error) {
+    console.error('Notifications error:', error);
+    res.status(500).json({ error: 'Unable to load notifications' });
+  }
+});
+
+
+// Mark notifications as read: { ids: [1,2] } or {} for all.
+router.post('/notifications/read', async (req, res) => {
+  try {
+    const ids = Array.isArray(req.body.ids) ? req.body.ids.map(Number).filter(Number.isInteger) : null;
+    if (ids && ids.length) {
+      await db.query(
+        'UPDATE notifications SET read_at = now() WHERE user_id = $1 AND id = ANY($2::bigint[]) AND read_at IS NULL',
+        [req.user.id, ids]
+      );
+    } else {
+      await db.query('UPDATE notifications SET read_at = now() WHERE user_id = $1 AND read_at IS NULL', [req.user.id]);
+    }
+    res.json({ ok: true });
+  } catch (error) {
+    console.error('Mark read error:', error);
+    res.status(500).json({ error: 'Unable to update notifications' });
+  }
+});
 
 
 module.exports = router;

@@ -3,9 +3,28 @@
   let user;
   try { user = await requireUser(); } catch { return; }
 
-  const hour = new Date().getHours();
-  const part = hour < 12 ? 'Good morning 🌅' : hour < 17 ? 'Good afternoon ☀️' : 'Good evening 🌃';
-  $('#greeting').textContent = `${part}, ${user.displayName}. Your space is ready.`;
+  // Re-check every minute so a shelf left open overnight doesn't keep saying "Good morning".
+  const greet = () => {
+    const g = greetingFor(user.displayName);
+    $('#greeting').textContent = g;
+    $('#greetingMobile').textContent = g;
+  };
+  greet();
+  setInterval(greet, 60 * 1000);
+
+  const drawAccount = () => {
+    $('#accountInitial').textContent = (user.displayName || user.username || '?')[0].toUpperCase();
+    const needs = !user.email || !user.emailVerified;
+    $('#emailNudge').classList.toggle('hidden', !needs);
+    $('#emailNudgeText').textContent = !user.email
+      ? '✉️ Add your email so you hear when a friend shares a paper or reacts to one of your days.'
+      : `✉️ Confirm ${user.email} so notifications can reach you.`;
+    $('#emailNudgeBtn').textContent = user.email ? 'Confirm email' : 'Add email';
+  };
+  drawAccount();
+  $('#accountBtn').onclick = () => openAccount(user, () => { drawAccount(); greet(); });
+  $('#emailNudgeBtn').onclick = () => openAccount(user, () => { drawAccount(); greet(); });
+  Bell.mount($('#topTools'));
 
   let data = { mine: [], shared: [] };
   let tab = 'mine';
@@ -27,10 +46,28 @@
 
   async function load() {
     data = await API.get('/api/papers');
+    drawStreak(data.writtenDays || []);
     const n = data.shared.length;
     $('#sharedCount').textContent = n;
     $('#sharedCount').classList.toggle('hidden', !n);
     render();
+  }
+
+  // Writing streak: consecutive days with something written, counting back from
+  // today (or from yesterday, so the streak isn't "lost" before you've written today).
+  function drawStreak(days) {
+    const set = new Set(days);
+    const key = (d) => `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
+    const d = new Date();
+    const wroteToday = set.has(key(d));
+    if (!wroteToday) d.setDate(d.getDate() - 1);
+    let n = 0;
+    while (set.has(key(d))) { n++; d.setDate(d.getDate() - 1); }
+    const el = $('#streak');
+    el.classList.toggle('hidden', n < 1);
+    el.textContent = `🔥 ${n}-day streak`;
+    el.title = wroteToday ? 'You wrote today. See you tomorrow!' : "Write today's page to keep it going";
+    el.classList.toggle('pending', !wroteToday);
   }
 
   function card(p, i) {
@@ -67,7 +104,7 @@
     $$('.paper-card', shelf).forEach((el) =>
       el.addEventListener('click', (e) => {
         const del = e.target.closest('[data-del]');
-        if (del) { e.stopPropagation(); return removePaper(Number(del.dataset.del)); }
+        if (del) { e.preventDefault(); e.stopPropagation(); return removePaper(Number(del.dataset.del)); }
         el.classList.add('pulling');
         setTimeout(() => (location.href = `/paper?id=${el.dataset.id}`), 380);
       })
@@ -75,7 +112,9 @@
   }
 
   async function removePaper(id) {
-    const p = data.mine.find((x) => x.id === id);
+    // Compare as numbers: Postgres BIGINT ids can arrive as strings.
+    const p = data.mine.find((x) => Number(x.id) === Number(id));
+    if (!p) return toast('Could not find that newspaper, try refreshing', 'error');
     const ok = await confirmModal(`Delete "${p.title}" for ${MONTHS[p.month - 1]} ${p.year}? All ${p.pageCount} day(s) will be gone for good.`, { okText: 'Delete', danger: true });
     if (!ok) return;
     try {

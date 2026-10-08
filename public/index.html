@@ -2,7 +2,14 @@
 <html lang="en">
 <head>
   <meta charset="utf-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
+  <meta name="theme-color" content="#2a170b" />
+  <meta name="mobile-web-app-capable" content="yes" />
+  <meta name="apple-mobile-web-app-capable" content="yes" />
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
+  <meta name="apple-mobile-web-app-title" content="dʌmi News" />
+  <link rel="manifest" href="/manifest.webmanifest" />
+  <link rel="apple-touch-icon" href="/icons/apple-touch-icon.png" />
   <link rel="icon" href="data:image/svg+xml,<svg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 100 100%22><text y=%22.9em%22 font-size=%2290%22>📰</text></svg>" />
   <title> dʌmi News · Sign in</title>
   <link rel="preconnect" href="https://fonts.googleapis.com" />
@@ -17,27 +24,83 @@
       <hr class="brand-rule" />
       <p class="tagline">Your daily content, curated by you.</p>
 
-      <div class="tabs" role="tablist">
-        <button class="tab active" data-mode="login" role="tab">Sign in</button>
-        <button class="tab" data-mode="register" role="tab">Create account</button>
-      </div>
+      <!-- View 1: sign in / create account -->
+      <section id="mainView">
+        <div class="tabs" role="tablist">
+          <button class="tab active" data-mode="login" role="tab">Sign in</button>
+          <button class="tab" data-mode="register" role="tab">Create account</button>
+        </div>
 
-      <form id="authForm" autocomplete="on" novalidate>
-        <label class="field register-only hidden">
-          <span>Your name</span>
-          <input class="input" name="displayName" maxlength="40" placeholder="Your name Only" />
-        </label>
-        <label class="field">
-          <span>Username</span>
-          <input class="input" name="username" required autocomplete="username" placeholder="Username" />
-        </label>
-        <label class="field">
-          <span>Password</span>
-          <input class="input" name="password" type="password" required autocomplete="current-password" placeholder="••••••" />
-        </label>
-        <p class="form-error" id="err"></p>
-        <button class="btn btn-primary" type="submit" id="submitBtn">Sign in</button>
-      </form>
+        <form id="authForm" autocomplete="on" novalidate>
+          <label class="field register-only hidden">
+            <span>Your name</span>
+            <input class="input" name="displayName" maxlength="40" autocomplete="name" placeholder="Your name" />
+          </label>
+          <label class="field register-only hidden">
+            <span>Email</span>
+            <input class="input" name="email" type="email" maxlength="254" autocomplete="email" inputmode="email" placeholder="you@example.com" />
+          </label>
+          <label class="field">
+            <span id="userLabel">Username or email</span>
+            <input class="input" name="username" required autocomplete="username" autocapitalize="none" autocorrect="off" spellcheck="false" placeholder="Username" />
+            <small class="name-status register-only hidden" id="nameStatus" aria-live="polite"></small>
+          </label>
+          <label class="field">
+            <span>Password</span>
+            <span class="pw-wrap">
+              <input class="input" name="password" type="password" required autocomplete="current-password" placeholder="••••••" />
+              <button type="button" class="pw-eye" aria-label="Show password" title="Show password">👁</button>
+            </span>
+          </label>
+          <p class="form-error" id="err"></p>
+          <button class="btn btn-primary" type="submit" id="submitBtn">Sign in</button>
+          <button type="button" class="link-btn login-only" id="forgotLink">Forgot password?</button>
+        </form>
+      </section>
+
+      <!-- View 2: enter the emailed code (sign-up) -->
+      <section id="codeView" class="hidden">
+        <h2 class="view-title">Check your email</h2>
+        <p class="view-sub">We sent a 6-digit code to <b id="codeEmail"></b>. It works for 10 minutes.</p>
+        <form id="codeForm" novalidate>
+          <input class="input code-input" name="code" inputmode="numeric" autocomplete="one-time-code" maxlength="6" pattern="[0-9]{6}" placeholder="••••••" aria-label="6-digit code" />
+          <p class="form-error" id="codeErr"></p>
+          <button class="btn btn-primary" type="submit" id="codeBtn">Verify &amp; create account</button>
+        </form>
+        <div class="code-links">
+          <button type="button" class="link-btn" id="resendBtn" disabled>Resend code</button>
+          <button type="button" class="link-btn" id="backBtn">← Change details</button>
+        </div>
+        <p class="tiny-note">Can't find it? Check your spam or promotions folder.</p>
+      </section>
+
+      <!-- View 3: forgot password -->
+      <section id="forgotView" class="hidden">
+        <h2 class="view-title">Reset your password</h2>
+        <p class="view-sub" id="forgotSub">Enter the email on your account and we'll send you a code.</p>
+        <form id="forgotForm" novalidate>
+          <label class="field" id="fEmailField">
+            <span>Email</span>
+            <input class="input" name="email" type="email" autocomplete="email" inputmode="email" placeholder="you@example.com" />
+          </label>
+          <div id="fStep2" class="hidden">
+            <label class="field">
+              <span>Code from the email</span>
+              <input class="input code-input" name="code" inputmode="numeric" autocomplete="one-time-code" maxlength="6" placeholder="••••••" />
+            </label>
+            <label class="field">
+              <span>New password</span>
+              <input class="input" name="newPassword" type="password" autocomplete="new-password" placeholder="At least 6 characters" />
+            </label>
+          </div>
+          <p class="form-error" id="forgotErr"></p>
+          <button class="btn btn-primary" type="submit" id="forgotBtn">Send code</button>
+        </form>
+        <div class="code-links">
+          <button type="button" class="link-btn hidden" id="fResendBtn" disabled>Resend code</button>
+          <button type="button" class="link-btn" id="fBackBtn">← Back to sign in</button>
+        </div>
+      </section>
     </div>
   </main>
 

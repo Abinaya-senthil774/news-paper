@@ -238,3 +238,61 @@
   .actions .btn { padding: 9px; }
   #roleBadge { display: none; }
 }
+
+/* ===== Reactions bar ===== */
+.react-bar { flex: none; display: flex; justify-content: center; padding: 6px 12px 0; position: relative; z-index: 4; }
+.react-inner {
+  display: flex; align-items: center; gap: 4px; flex-wrap: wrap; justify-content: center;
+  padding: 5px 8px; border-radius: 999px;
+  background: rgba(20, 12, 6, 0.72); border: 1px solid var(--line); backdrop-filter: blur(6px);
+  animation: popIn 0.35s cubic-bezier(0.2, 1.3, 0.4, 1);
+}
+.react-chip {
+  display: inline-flex; align-items: center; gap: 4px; height: 36px; min-width: 40px; padding: 0 9px;
+  border-radius: 999px; border: 1px solid transparent; background: transparent; color: var(--text-light);
+  font-size: 13px; font-weight: 700; transition: background 0.15s, transform 0.15s;
+}
+.react-chip .e { font-size: 19px; line-height: 1; display: inline-block; }
+.react-chip:hover:not(:disabled) { background: rgba(255, 255, 255, 0.12); transform: translateY(-2px); }
+.react-chip.mine { background: rgba(247, 241, 228, 0.95); color: var(--ink); border-color: var(--chai); }
+.react-chip:disabled { cursor: default; opacity: 1; }
+.react-label, .react-hint { font-size: 12px; opacity: 0.8; padding: 0 6px; font-family: var(--serif); font-style: italic; }
+.react-who { border: 0; background: none; color: var(--text-light); font-size: 12px; text-decoration: underline dotted; padding: 0 6px; max-width: 150px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.react-big { font-size: 22px; }
+
+/* ===== Reader on phones ===== */
+.reader { height: 100vh; height: 100dvh; }
+.book-wrap { position: relative; touch-action: manipulation; overscroll-behavior: contain; }
+.book-wrap.zoomed { cursor: zoom-out; }
+.book-wrap.zoomed + .nav-arrow, .stage:has(.zoomed) .nav-arrow { opacity: 0.35; }
+.day-strip { justify-content: flex-start; padding-bottom: max(14px, env(safe-area-inset-bottom)); scrollbar-width: none; }
+.day-strip::-webkit-scrollbar { display: none; }
+.day-chip:first-child { margin-left: auto; }
+.day-chip:last-child { margin-right: auto; }
+@media (pointer: coarse) {
+  .el-handle, .el-resize { touch-action: none; }
+  .el-handle { height: 30px; padding: 0 12px; font-size: 13px; }
+  .el-resize { width: 24px; height: 24px; right: -12px; bottom: -12px; }
+  .tb { height: 38px; min-width: 38px; }
+  .tb-select { height: 38px; }
+}
+@media (max-width: 760px) {
+  #shareBtn, #pdfBtn { display: none !important; }
+  .reader-bar { padding-top: max(10px, env(safe-area-inset-top)); }
+  .reader-bar .icon-btn { width: 38px; height: 38px; }
+  .paper-meta small { font-size: 11px; }
+  .book-wrap { padding: 10px 6px; }
+  .nav-arrow { bottom: 10px; width: 42px; height: 42px; background: rgba(20, 12, 6, 0.75); }
+  .react-bar { padding-top: 4px; }
+  .react-chip { height: 34px; min-width: 36px; padding: 0 7px; }
+  .react-chip .e { font-size: 18px; }
+  .day-chip { width: 38px; height: 38px; }
+  .share-form { flex-wrap: wrap; }
+  .share-form .input:first-child { flex: 1 1 100%; }
+  .share-form select, .share-form .btn { flex: 1; justify-content: center; }
+  .share-list li { flex-wrap: wrap; }
+  .thumb-grid { grid-template-columns: repeat(auto-fill, minmax(100px, 1fr)); }
+  .thumb .mini { width: 90px; height: 140px; }
+  .thumb .mini .np-page { --s: 0.1; }
+  .edit-toolbar { padding: 6px 8px; scrollbar-width: thin; }
+}

@@ -2,7 +2,14 @@
 <html lang="en">
 <head>
   <meta charset="utf-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
+  <meta name="theme-color" content="#2a170b" />
+  <meta name="mobile-web-app-capable" content="yes" />
+  <meta name="apple-mobile-web-app-capable" content="yes" />
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
+  <meta name="apple-mobile-web-app-title" content="dʌmi News" />
+  <link rel="manifest" href="/manifest.webmanifest" />
+  <link rel="apple-touch-icon" href="/icons/apple-touch-icon.png" />
   <link rel="icon" href="data:image/svg+xml,<svg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 100 100%22><text y=%22.9em%22 font-size=%2290%22>📰</text></svg>" />
   <title>dʌmi News  · Your shelf</title>
   <link rel="preconnect" href="https://fonts.googleapis.com" />
@@ -16,17 +23,25 @@
       <a class="logo" href="/shelf">dʌmi News</a>
       <span class="greeting" id="greeting"></span>
       <span class="spacer"></span>
+      <div class="top-tools" id="topTools"></div>
+      <button class="icon-btn" id="accountBtn" title="Your account" aria-label="Your account"><span id="accountInitial">·</span></button>
       <button class="btn btn-ghost btn-sm" id="logoutBtn">Sign out</button>
     </header>
 
     <main class="shelf-page">
       <div class="shelf-head">
         <h1>The Newspaper Shelf</h1>
+        <span class="streak hidden" id="streak"></span>
         <div class="shelf-tabs" role="tablist">
           <button class="tab active" data-tab="mine">My papers</button>
           <button class="tab" data-tab="shared">Shared with me <span class="count hidden" id="sharedCount"></span></button>
         </div>
       </div>
+      <div class="email-nudge hidden" id="emailNudge">
+        <span id="emailNudgeText"></span>
+        <button class="btn btn-primary btn-sm" id="emailNudgeBtn">Add email</button>
+      </div>
+      <p class="greeting-mobile" id="greetingMobile"></p>
       <section class="shelf" id="shelf" aria-live="polite"></section>
     </main>
 

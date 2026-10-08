@@ -7,9 +7,14 @@ const path = require('path');
 
 const auth = require('./src/auth');
 const api = require('./src/api');
+const migrate = require('./src/migrate');
 
 const app = express();
 const PORT = process.env.PORT || 3000;
+
+// Behind Render/Railway/Vercel-style proxies: trust X-Forwarded-* so
+// req.protocol is "https" (used in email links) and secure cookies work.
+app.set('trust proxy', 1);
 
 app.use(express.json({ limit: '25mb' }));
 app.use(cookieParser());
@@ -35,4 +40,11 @@ app.use((err, req, res, next) => {
   res.status(500).json({ error: 'Something went wrong on the server' });
 });
 
-app.listen(PORT, () => console.log(`☕ Chai Chronicle running at http://localhost:${PORT}`));
+migrate()
+  .catch((err) => {
+    // Don't refuse to start: the old features still work without the new tables.
+    console.error('⚠ Could not update the database schema:', err.message);
+  })
+  .finally(() => {
+    app.listen(PORT, () => console.log(`☕ dʌmi News running at http://localhost:${PORT}`));
+  });

@@ -1,4 +1,4 @@
-# ☕ Chai Chronicle
+# NewsPaper
 
 A personal journal that looks and feels like a classic broadsheet newspaper.
 **One newspaper = one month. One page = one day.** All of it sits on a wooden shelf in an Indian tea stall.

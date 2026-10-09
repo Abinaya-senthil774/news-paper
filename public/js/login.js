@@ -34,7 +34,7 @@
       $$('.register-only').forEach((el) => el.classList.toggle('hidden', !reg));
       $$('.login-only').forEach((el) => el.classList.toggle('hidden', reg));
       $('#userLabel').textContent = reg ? 'Username' : 'Username or email';
-      form.username.placeholder = reg ? 'e.g. name.m' : 'Username';
+      form.username.placeholder = reg ? 'e.g. username' : 'Username';
       form.password.autocomplete = reg ? 'new-password' : 'current-password';
       form.password.placeholder = reg ? 'At least 6 characters' : '••••••';
       submit.textContent = reg ? 'Create account' : 'Sign in';
